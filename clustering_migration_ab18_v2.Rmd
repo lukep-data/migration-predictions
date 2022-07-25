@@ -1,0 +1,393 @@
+---
+title: "Analysis of Patterns in Intention to Migrate in the 2018/19 AmericasBarometer"
+author: "Luke Plutowski"
+date: '2022-06-15'
+output: html_document
+---
+
+```{r setup, include=FALSE, fig.align = "center"}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = "center")
+```
+
+# Summary
+
+The AmericasBarometer has been assessing intention to migrate among Guatemalan citizens for over a decade.  This memo provides an overview of the results on migration intention in the 2021 round of the survey.  I rely on cluster analysis to group those who intend to migrate into categories based on demographic characteristics.  I then use regression analyses to assess which attitudinal and behavioral factors predict migration, and, using information extracted from the cluster analysis as a guide, whether these predictors vary based upon the migrants' identities.  The results help uncover patterns in migration and identify risk factors which predict intention to migrate.
+
+# Overview of Migration Intention in Guatemala
+
+### Cross-Time Trends
+
+For this project, I use data primarily from the 2021 round of the AmericasBarometer in Guatemala. Respondents were asked the following question about intention to migrate:
+
+- **Q14.** Do you have any intention of going to live or work in another country in the next three
+years? (1) Yes (2) No
+
+The AmericasBarometer has tracked this measure in Guatemala since 2004.  The figure below shows the percentage of Guatemalan citizens who intend(ed) to migrate each round of the survey.  
+
+<center> 
+
+```{r, results = 'hide'}
+library(readstata13)
+# library(cluster.datasets)
+library(factoextra)
+library(lapop)
+library(stargazer)
+library(survey)
+library(ggtext)
+library(kableExtra)
+
+# ab <- read.dta13("C:/Users/plutowl/Desktop/data/all_2004-2018_gm_spa-eng_s_v1-0.dta", convert.factors = FALSE)
+gtm <- read.dta13("C:/Users/plutowl/Desktop/data/gtm_2004-2021_ts_spa-eng_s_v1-2.dta", convert.factors = FALSE)
+# 2 guatemala, #3 ES, #4 Hon, #5 Nicaragua
+
+gtm$migrate <- ifelse(gtm$q14 == 2, 0, gtm$q14)
+
+
+table(gtm$wave, gtm$migrate)
+gtm$wave[gtm$wave == 2018] <- "2018/19"
+gtm$wave[gtm$wave == 2016] <- "2016/17"
+
+mig_wave <- aggregate(gtm$migrate, list(gtm$wave), FUN=mean, na.rm= TRUE)
+mig_wave$x <- mig_wave$x * 100
+mig_wave$lb <- mig_wave$x - 1.79
+mig_wave$ub <- mig_wave$x + 1.79
+mig_wave$proplabel <- paste0(round((mig_wave$x)), "%")
+names(mig_wave)[1] <- "wave"
+names(mig_wave)[2] <- "prop"
+mig_wave2 <- mig_wave[-1, ]
+
+lapop_ts(mig_wave,
+         ymin = 0,
+         ymax = 50,
+         main_title = "Intention to migrate among Guatemalan citizens\nrose sharply in 2021",
+         subtitle = "% who intend to migrate",
+         source_info = "GTM, 2004-2021")
+```
+
+</center>
+
+In 2021, intention to migrate in Guatemala was 39.0%.  This seems quite high, but it is actually lower than the figure in other countries such as Ecuador (39.3%), the Dominican Republic (44.8%), Nicaragua (54.5%), Honduras (52.8%), Jamaica (57.9%), and Haiti (76.4%).  
+
+### Predictors of Migration
+
+To begin to understand drivers of migration, we may conduct regression analysis using the intention to migrate variable as the outcome of interest.  Previous research has established that factors such as economic hardship, corruption, dissatisfaction with the political system, and risk of harm due to natural disasters lead some to emigrate.  To gauge whether these issues matter for Guatemalans in 2021, I estimate a logistic regression using intention to migrate as the dependent variable and the following four variables as predictors:
+
+- **B3.** To what extent do you think that citizens’ basic rights are well protected by the political system of Guatemala? [1-7 scale]
+- **B47A.** To what extent do you trust elections in this country? [1-7 scale]
+- **DRK1N.** How likely do you think it is that you or someone in your immediate family here in Guatemala
+could be killed or seriously injured in a natural disaster, such as floods, earthquakes,
+hurricanes, landslides, or storms in the next 10 years? Do you think it is…?  (1) Not likely (2) A little likely (3) Somewhat likely (4) Very likely 
+- **IDIO2.** Do you think that your current economic situation is better, the same or worse than it was twelve months ago? (1) Better (2) Same  (3) Worse.
+
+I also add the respondents' gender, age, education, wealth, and urbanization as control variables.  I impute missing data for the covariates using their median values.  
+
+<center> 
+
+```{r, results='asis', fig.align = "center"}
+# library(kableExtra)
+# library(tidyr)
+# library(dplyr)
+# library(broom)
+
+gtm21 <- read.dta13("C:/Users/plutowl/Box/LAPOP Shared/2_Projects/2021 AB/Core_Regional/Data Processing/v1.2/internal/GTM_2021_LAPOP_AmericasBarometer_v1.2.dta", convert.factors = FALSE)
+
+gtm21$estratopri[is.na(gtm21$estratopri)] <- "200"
+gtm21$migrate <- ifelse(gtm21$q14 == 2, 0, gtm21$q14)
+gtm21$ur <- ifelse(gtm21$ur1new <= 2, 1,
+                   ifelse(gtm21$ur1new > 2, 2, gtm21$ur1new))
+
+r1vars <- c("idnum", "weight1500", "migrate", "gender", "q2", "edr", "wealth", "ur", "b47a", "drk1n", "b3", "idio2")
+gtmr1 <- gtm21[, r1vars]
+
+all_column_median <- as.numeric(apply(gtmr1, 2, median, na.rm=TRUE))
+
+# imputing NA with median value  
+for(i in colnames(gtmr1)){
+  gtmr1[,i][is.na(gtmr1[,i])] = all_column_median[i]
+}
+gtmr1$b47a[is.na(gtmr1$b47a)] <- 3
+
+gtm21s <- svydesign(id=~idnum, weights=~weight1500, data = gtmr1)
+
+r1 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2 + gender + q2 + edr + wealth + ur, design = gtm21s, family = binomial())
+
+# summary(r1)
+
+stargazer(r1, 
+          type = "html",
+          title = "Logistic Regression of Intention to Migrate in Guatemala",
+          column.labels = "2021",
+          dep.var.labels = "Intent to Migrate (1 = yes)",
+          colnames = FALSE,
+          model.numbers = FALSE, 
+          covariate.labels = c("Trust in Elections (1-7)", "Trust in Judicial System (1-7)", "Disaster Risk (1-4)", "Economic Situation Last Year (1-3)", "Female", "Age", "Education (1-4)", "Wealth (1-4)", "Urban (0/1)"
+                               ))
+                            
+``` 
+
+</center>
+
+The results of the regression suggest that, among the substantive factors of interest, only trust in elections seems to make a difference: the more one trusts elections in Guatemala, they less likely they are to want to migrate.  Trust in the judicial system, disaster risk, and economic hardship over the past year do not act as significant predictors in the full model (including demographic variables). Among the demographic factors, gender and age are significant: women are less likely to want to migrate, as are older people.  
+
+# Cluster Analysis
+
+What types of people are most likely to migrate?  The regression analysis above is instructive though perhaps incomplete, as it only shows _average_ effects across the entire population and does not provide a complete profile of the typical migrant.  We may further explore this question using cluster analysis, which is a technique for algorithmically placing observations into groups based on a set of observed characteristics.  In doing so, we can define "categories" of observations that look similar along a set of pre-defined variables.
+
+For this task, we limit the dataset to only those respondents who say they intend to migrate ($n = 512$).  The cluster analysis can be thought of as identifying or defining "types" of migrants (or more precisely, types of people who intend to migrate).
+
+To define "types" of migrants, I use common demographic characteristics as features in the analysis.  These are useful variables to analyze since they are available in all LAPOP datasets as well as in most censuses or other population studies.  The variables are also factual characteristics rather than difficult-to-identify and perhaps transient characteristics like the attitudinal measures included in the regression above.  The demographic variables used for clustering are the same as those used in the regression. When data is not available, I impute using the overall median. 
+
+
+```{r, fig.align="center"}
+gtm21mig <- gtmr1[gtmr1$migrate == 1, 4:8]
+gtm21mig <- gtm21mig[complete.cases(gtm21mig),]
+
+gtm21mig_std <- apply(gtm21mig, 2, scale, center = TRUE, scale = TRUE)
+
+
+set.seed(615)
+WSS = NULL
+for (K in 2:10) {
+  kms = kmeans(gtm21mig_std, centers = K, nstart = 10)
+  wssk = sum(kms$withinss)
+  WSS = c(WSS, wssk)
+}
+
+plot(c(2:10), WSS, xlab = "K", ylab = "WSS(K)")
+```
+
+
+I use k-means clustering to partition the observations into groups.  In this technique, observations are assigned into clusters based on their proximity to each cluster's center (multivariate mean) based on Euclidean distance.  Once all observations are assigned, the mean of each cluster is re-calculated, and observations may then move to a new cluster if they are now closer to a new mean.  This process repeats until assignments no longer change.
+
+The number of clusters _k_ must be pre-defined.  We can find the optimal number of clusters by calculating the within-cluster sum of squares (WSS) with different values for _k_ and plotting the results.  Because variables with higher variances could dominate the Euclidean distances used for creating clusters, I standardize each variable and replace them with _z_-scores.  Since the results are highly dependent upon the placement of the first clusters, I use 10 random initializations for each iteration of the algorithm.  The within-cluster sum of squares plot is shown below.
+
+The optimal number of clusters minimizes the WSS while also keeping the number of clusters small.  This can be done informally by identifying the "elbow" of the plot, or where the line connecting the points becomes somewhat flat.  From the figure above, there is no obvious "kink" in the line, though 6 might be a reasonable choice.
+
+I reestimate the k-means clustering algorithm using _k_ = 6.  The output below shows the mean of each of the six clusters (rows) for each feature (columns).  As the variables were rescaled and standardized, this table can be used to easily compare the makeup of each cluster.
+
+```{r}
+# fviz_nbclust(gtm21mig, kmeans, method='silhouette')
+
+set.seed(615)
+mig_clust <- kmeans(gtm21mig_std, centers = 6, nstart = 10)
+# mig_clust$size
+gtm21_migc <- as.data.frame(cbind(mig_clust$size, round(mig_clust$centers, 2)))
+row.names(gtm21_migc) <- c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5", "Cluster 6")
+
+gtm21_migc %>% 
+  kbl(col.names = c("Count", "Female", "Age", "Education", "Wealth", "Rural")) %>%
+  kable_styling() 
+ 
+# cluster 1: female, slightly younger, moderately high education, moderately high wealth, more urban 
+# 2: female, slightly younger, slightly less educated, moderately less wealthy, moderately more rural
+# 3: mixed gender, very old, low education, moderately low wealth, mixed urbananization
+# 4: slightly more male, slightly younger, somewhat more educated and wealthy, more rural
+# 5: more male, mixed age, less educated and wealthy, slightly more rural
+# 6: more male, mixed age, more educated and wealthy, more urban
+
+```
+
+
+
+The six groups of migrants found using this particular algorithm each have distinct characteristics.    Cluster 1 consists of more male, moderately educated and wealthy people primarily from rural areas.  Cluster 2 is made up of people who are primarily female, again moderately educated and wealthy, and from urban areas.  Cluster 3, the largest cluster, is not extremely distinct on any particular measure, though they are more likely to be female and a rural resident.  Those belonging to cluster 4 are comparatively less educated and wealthy and more rural.  Cluster 5 consists of educated and wealthy people living in an urban space.  Those in cluster 6 are much older and less educated than those in other clusters.   
+
+At the risk of oversimplification, we can assign the following labels to each cluster of migrant:
+
+- Cluster 1: Rural upper-middle class males
+- Cluster 2: Wealthy female urbanites
+- Cluster 3: Rural women
+- Cluster 4: The rural poor
+- Cluster 5: Wealthy male urbanites
+- Cluster 6: Older adults
+
+These descriptions can help us tell stories about the different reasons that people may migrate to a new country.  The relatively wealthy urbanites may emigrate to seek education or white-collar jobs.  Those from rural areas may be migrant laborers looking for work in agriculture.  Older adults could be following their children or seeking retirement abroad.  
+
+## Cross-Time Comparison
+
+It is difficult to assess whether the clusters outlined above are generalizable or specific to the time and place in which the study took place (Guatemala in 2021).  One way to improve understanding of the results is to examine how clusters have changed across time.  To this end, I repeat the cluster analysis using data from the 2018/19 AmericasBarometer in Guatemala.  This survey included the same questions as those analyzed in 2021.  
+
+```{r, results = 'hide', fig.show = "hide"}
+gtmts <- read.dta13("C:/Users/plutowl/Box/LAPOP Shared/2_Projects/2021 AB/Core_Regional/Data Processing/v1.2/internal/time-series/GTM_LAPOP_merge_2004-2021_v1.2.dta", convert.factors = FALSE)
+gtm18 <- gtmts[gtmts$wave == 2018, ]
+
+# gtm18$estratopri[is.na(gtm18$estratopri)] <- "200"
+gtm18$migrate <- ifelse(gtm18$q14 == 2, 0, gtm18$q14)
+
+demvars <- c("sex", "q2", "ed", "wealth", "ur")
+gtm18dem <- gtm18[gtm18$migrate == 1, demvars]
+
+
+acmgtm18 <- apply(gtm18dem, 2, median, na.rm=TRUE)
+
+# imputing NA with median value  
+for(i in colnames(gtm18dem)){
+  gtm18dem[,i][is.na(gtm18dem[,i])] = acmgtm18[i]
+}
+
+# gtm18mig <- gtm18mig[complete.cases(gtm18mig),]
+
+gtm18dem_std <- apply(gtm18dem, 2, scale, center = TRUE, scale = TRUE)
+
+
+set.seed(615)
+WSS = NULL
+for (K in 2:10) {
+  kms = kmeans(gtm18dem_std, centers = K, nstart = 10)
+  wssk = sum(kms$withinss)
+  WSS = c(WSS, wssk)
+}
+
+plot(c(2:10), WSS, xlab = "K", ylab = "WSS(K)")
+```
+
+I chose _k_ = 5 for the 2018 data based on an examination of the WSS plot (not shown).  Fewer Guatemalans reported intention to migrate in 2018; there were 407 observations for this cluster analysis.  
+
+```{r}
+set.seed(820)
+
+mig_clustgtm18 <- kmeans(gtm18dem_std, centers = 5, nstart = 10)
+# mig_clust$size
+# round(mig_clustgtm18$centers, 2)
+
+gtm18_migc <- as.data.frame(cbind(mig_clustgtm18$size, round(mig_clustgtm18$centers, 2)))
+row.names(gtm18_migc) <- c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5")
+
+gtm18_migc %>% 
+  kbl(col.names = c("Count", "Female", "Age", "Education", "Wealth", "Rural")) %>%
+  kable_styling() 
+
+# c1: more male, rural, younger
+# c2: less wealthy females
+# c3: older, less wealthy
+# c4: URbanites
+# c5: Wealthy female urbanites
+```
+
+The means of the five clusters over the five demographic features is shown above.  Based on the results, we may label each cluster as such: 
+
+- Cluster 1: Young rural men
+- Cluster 2: Poor women
+- Cluster 3: Older adults with less education
+- Cluster 4: Urbanites
+- Cluster 5: Wealthy females.
+
+There is clear overlap between the clusters in the two waves of the survey.  Cluster 1 in each wave consists of rural men.  Cluster 2 in 2021 and cluster 5 in 2018 are quite similar in that they are mostly women who are relatively affluent.  Cluster 3 in 2021 looks like cluster 2 in 2018; both are predominately females from rural areas who are less affluent and educated.  Cluster 4 in 2018 and cluster 5 in 2021 are both quite urban and male.  Cluster 6 in 2021 and cluster 3 in 2018 stand out for having a significantly higher age than the other clusters, but the 2021 cluster also stands out for having comparatively low education levels.  
+
+## Cross-Country Comparison
+
+We may also contextualize the results from Guatemala in 2021 by comparing them to another country.  I next repeat the clustering analysis using data from Nicaragua in 2021.  The methodology is the same as in Guatemala.  The same five demographic variables are used, and again I impute missing values with their medians.  In 2021, 45.5% of Nicaraguans reported intention to migrate.  There are 809 Nicaraguans who intend to migrate and therefore 809 observations in the cluster analysis.  
+
+
+```{r, results = 'hide', fig.show = "hide"}
+nic21 <- read.dta13("C:/Users/plutowl/Box/LAPOP Shared/2_Projects/2021 AB/Core_Regional/Data Processing/v1.2/internal/NIC_2021_LAPOP_AmericasBarometer_v1.2.dta", convert.factors = FALSE)
+
+# gtm18$estratopri[is.na(gtm18$estratopri)] <- "200"
+nic21$migrate <- ifelse(nic21$q14 == 2, 0, nic21$q14)
+
+demvars <- c("gender", "q2", "edr", "wealth", "ur1new")
+nic21dem <- nic21[nic21$q14 == 1 & !is.na(nic21$q14), demvars]
+
+acmnic21 <- apply(nic21dem, 2, median, na.rm=TRUE)
+
+# imputing NA with median value  
+for(i in colnames(nic21dem)){
+  nic21dem[,i][is.na(nic21dem[,i])] = acmnic21[i]
+}
+
+# nic21mig <- nic21mig[complete.cases(nic21mig),]
+
+nic21dem_std <- apply(nic21dem, 2, scale, center = TRUE, scale = TRUE)
+
+
+set.seed(612)
+WSS = NULL
+for (K in 2:10) {
+  kms = kmeans(nic21dem_std, centers = K, nstart = 10)
+  wssk = sum(kms$withinss)
+  WSS = c(WSS, wssk)
+}
+
+plot(c(2:10), WSS, xlab = "K", ylab = "WSS(K)")
+```
+
+
+```{r}
+set.seed(820)
+
+mig_clustnic21 <- kmeans(nic21dem_std, centers = 5, nstart = 10)
+
+
+nic21_migc <- as.data.frame(cbind(mig_clustnic21$size, round(mig_clustnic21$centers, 2)))
+row.names(nic21_migc) <- c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5")
+
+nic21_migc %>% 
+  kbl(col.names = c("Count", "Female", "Age", "Education", "Wealth", "Rural")) %>%
+  kable_styling() 
+# mig_clust$size
+
+# 
+```
+Once again I show the average of each cluster on the five demographic variables in the table above.  Based on these results, we may assign the following labels to each cluster: 
+
+- Cluster 1: Young men
+- Cluster 2: Rural women
+- Cluster 3: Low SES
+- Cluster 4: Urban women
+- Cluster 5: Older men with low SES.  
+
+The clusters for Nicaragua have different lines of division than the ones in Guatemala.  For example, cluster 3 in Nicaragua is distinctly low on education and wealth, whereas no one cluster stands out for being particularly low on SES in Guatemala.  In Nicaragua, clusters 2 and 4 are remarkably similar (mostly female, somewhat young, somewhat high SES) except on level of urbanization.  Cluster 5 stood out along four dimensions: it is highly male, older, and relatively low education and wealth.   
+
+
+# Subgroup Regression Analysis
+
+What factors predict whether people migrate?  The reasons may differ for each of the groups identified above.  In this section, I use AmericasBarometer data to investigate which behaviors, attitudes, experiences, and opinions influence intention to migrate.  I use regression analyses among subgroups to compare which predictors are most strongly associated with intention to migrate between different types of migrants.
+
+I return to the 2021 data from Guatemala.  In contrast to the cluster analysis, in which the data was limited to only those who stated that they intend to migrate, I use the full dataset and treat the intention to migrate variable as the outcome of interest.  As in the initial regression, I use trust in elections, trust in the judicial system, disaster risk, and economic situation over the previous 12 months as predictors, in addition to the five demographic controls used throughout this paper.
+
+To compliment the findings from the initial regression, I now estimate the regressions on various subsamples of the full dataset.  These subsamples are groups of individuals with distinct characteristics identified by the clustering analysis.  The groups are _not_ the same as the clusters, and the groups are not mutually exclusive.  Some observations may be placed into one of several groups.  The clustering exercise simply serves as a way to identify possible types of migrants.  The regression analyses here aims to provide more explanation about the factors that may drive each of these groups to migrate.  For example, the relationship between disasters and migration may not be constant across demographic groups.  The rural poor may be sensitive to disaster risk, whereas for wealthy male urbanites, whose livelihood does not depend on weather-related phenomena, the possibility of natural disasters may be unrelated to their decision to migrate or not.  
+
+I estimate regressions on separate groups based on observable demographic characteristics.  The first model limits the analysis to men from rural areas with above average wealth (wealth level 3 or above).  Group 2 consists of women from urban areas with above average wealth.  Group 3 is women from rural areas, while group 4 consists of people who live in rural areas with low wealth (wealth level 2 or below).  In model 5, I estimate the regression on the population of Guatemalans who are male, above average wealth, and from an urban area.  The last group is made up of people older the third quartile of age (42 years old) and average or below average education (secondary or less).  
+
+<center>
+
+```{r, results='asis', fig.align='center', error = TRUE}
+c1 <- subset(gtm21s, gender == 1 & ur == 2 & wealth >= 3)
+c2 <- subset(gtm21s, gender == 2 & ur == 1 & wealth >= 3)
+c3 <- subset(gtm21s, gender == 2 & ur == 2) 
+c4 <- subset(gtm21s, ur == 2 & wealth < 3)
+c5 <- subset(gtm21s, gender == 1 & ur == 1 & wealth >= 3)
+c6 <- subset(gtm21s, q2 >= 42 & edr < 4)
+
+
+# ra1 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2 + gender + q2 + edr + wealth + ur, design = c1, family = binomial())
+# ra2 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2 + gender + q2 + edr + wealth + ur, design = c2, family = binomial())
+# ra3 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2 + gender + q2 + edr + wealth + ur, design = c3, family = binomial())
+# ra4 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2 + gender + q2 + edr + wealth + ur, design = c4, family = binomial())
+# ra5 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2 + gender + q2 + edr + wealth + ur, design = c5, family = binomial())
+# ra6 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2 + gender + q2 + edr + wealth + ur, design = c6, family = binomial())
+
+
+rb1 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2, design = c1, family = binomial())
+rb2 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2, design = c2, family = binomial())
+rb3 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2, design = c3, family = binomial())
+rb4 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2, design = c4, family = binomial())
+rb5 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2, design = c5, family = binomial())
+rb6 <- svyglm(migrate ~ b47a + drk1n + b3 + idio2, design = c6, family = binomial())
+
+stargazer(rb1, rb2, rb3, rb4, rb5, rb6, 
+          type = "html",
+          title = "Logistic Regression of Intention to Migrate in Guatemala",
+          column.labels = "2021",
+          dep.var.labels = "Intent to Migrate (1 = yes)",
+          colnames = FALSE,
+          model.numbers = TRUE, 
+          covariate.labels = c("Trust in Elections (1-7)", "Trust in Judicial System (1-7)", "Disaster Risk (1-4)", "Economic Situation Last Year (1-3)"))
+```
+
+</center>
+
+The results of the six regressions are displayed above.  The table shows that the predictors of migration do in fact vary by demographic group.  Trust in elections is negatively associated with migration intention (as expected) only for group 6 (older adults with low education).  Meanwhile, trust in the judiciary is positively associated with intent to migrate for group 2 (wealthy female urbanites) and group 4 (rural poor).  Also for group 4, disaster risk predicts intention to migrate. 
+
+The results demonstrate that factors which predict migration may vary based on an individual's demographic identity or social location.   That disaster risk predicts intention to migrate for the rural poor but not others is consistent with the argument that the livelihood of struggling agricultural workers is dependent on weather challenges, which may contribute to their desire to seek employment in a new country, whereas those who live and work in cities may not be as sensitive to disaster risk.  Trust in the judiciary predicts intention to migrate among wealthy female urbanites (group 2) but not wealthy male urbanites (group 5).  This could be because concern about crime and gender-based violence may led to emigration for young female professionals but not their male counterparts.  This phenomenon of cross-demographic differences in migration drivers could certainly exist for other types of behaviors and attitudes as well.  For example, community involvement could negatively predict intention to migrate for for single people and the unemployed but not for others who have strong ties to their current place of residence because of family or their work.  
+
+This exercise shows the utility of cluster analysis in helping discover patterns of migration.  Exploring the clusters can help generate hypotheses about the factors which predict migration and can shed light on cross-demographic patterns in migration that cannot be captured by simply adding demographic variables as controls or interactions in regression models, as was done in the beginning of this note.  

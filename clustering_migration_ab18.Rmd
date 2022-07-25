@@ -1,0 +1,221 @@
+---
+title: "Analysis of Patterns in Intention to Migrate in the 2018/19 AmericasBarometer"
+author: "Luke Plutowski"
+date: '2022-06-15'
+output: html_document
+---
+
+```{r setup, include=FALSE, fig.align = "center"}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+# Summary
+
+This memo provides a demonstration of how AmericasBarometer data can be used to uncover patterns in migration.  The first half of the memo relies on cluster analysis to group those who intend to migrate into categories based on demographic characteristics.  I then use regression analyses to assess which attitudinal and behavioral factors predict migration, and, using information extracted from the cluster analysis as a guide, whether these predictors vary based upon the migrants' identities.
+
+# Data
+
+```{r, results = 'hide'}
+library(readstata13)
+# library(cluster.datasets)
+library(factoextra)
+
+ab18 <- read.dta13("C:/Users/plutowl/Desktop/data/all_2018_rm_spa-eng_s_v1-0.dta", convert.factors = FALSE)
+
+ab18$migrate <- ifelse(ab18$q14 == 2, 0, ab18$q14)
+
+table(ab18$pais, ab18$migrate)
+aggregate(ab18$migrate, list(ab18$pais), FUN=mean, na.rm= TRUE) 
+
+ab18$unemp <- ifelse(ab18$ocup4a == 3 | ab18$ocup4a == 7, 1,
+                                 ifelse(ab18$ocup4a < 3 | ab18$ocup4a == 4 | ab18$ocup4a == 5 | ab18$ocup4a == 6, 0, NA))
+ab18$single <- ifelse(ab18$q11n == 1 | ab18$q11n == 4 | ab18$q11n == 5 | ab18$q11n == 6, 1,
+                    ifelse(is.na(ab18$q11n), NA, 0))
+
+
+ab18$pais_c <- as.character(ab18$pais)
+```
+
+For this project, I use data from the 2018/19 round of the AmericasBarometer. With the exception of the US and Canada, respondents from every country included in the survey (18 countries across the Americas) were asked the following question about intention to migrate:
+
+- **Q14.** Do you have any intention of going to live or work in another country in the next three
+years? (1) Yes (2) No 
+
+In 2018/19, intention to migrate (proportion saying yes out of all valid responses) was 28.9\% region-wide.  Intention varied greatly by country, ranging from a low of 18.3\% in Chile to a high of 55.7\% in Jamaica.  
+
+
+# Part I: Clustering
+
+What types of people are most likely to migrate?  We may explore this question statistically using both cluster analysis, which is a technique for algorithmically placing observations into groups based on a set of observed characteristics.  In doing so, we can define "categories" of observations that look similar along a set of pre-defined variables. 
+
+For this task, we limit the dataset to only those respondents who say they intend to migrate.  The cluster analysis can then be thought of as identifying or defining "types" of migrants (or more precisely, types of people who intend to migrate).  
+
+To define "types" of migrants, I use common demographic characteristics as features in the analysis.  These are useful variables to analyze since they are available in all our datasets as well as in most censuses or other population studies, and the variables are more or less identifiable, factual characteristics.  The variables analyzed are the following:
+
+- Sex (male/female)
+- Age in years
+- Urbanization (rural or urban residence)
+- Years of education
+- Income category (17 categories based on income distribution in each country)
+- Martial status (single or not single)
+- Employment status (employed or not employed) 
+
+```{r}
+mo <- ab18[ab18$q14 == 1, ]
+
+# q10a - remittances 
+# q5a - religious attendance
+dem_vars <- c("q1", "q2" , "ur", "single", "ed", "q10new", "unemp")
+moc <- mo[, dem_vars]
+moc <- moc[rowSums(is.na(moc)) < 5,]
+# colSums(is.na(moc))
+
+all_column_median <- apply(moc, 2, median, na.rm=TRUE)
+
+# imputing median value with NA 
+for(i in colnames(moc)){
+  moc[,i][is.na(moc[,i])] = all_column_median[i]
+}
+```
+
+When data is not available, I impute using the overall median.  Nonresponse was particularly high for self-reported income (9.2\%), though it was below 5\% for all other variables.  
+
+I use k-means clustering to partition the observations into groups.  In this technique, observations are assigned into clusters based on their proximity to each cluster's center (mean).  Once all observations are assigned, the mean of each cluster is re-calculated, and observations may then move to a new cluster if they are now closer to a new mean (based on Euclidean distance).  This process repeats until assignments no longer change.  
+
+The number of clusters _k_ must be pre-defined.  We can find the optimal number of clusters by calculating the within-cluster sum of squares (WSS) with different values for _k_ and plotting the results.  Because variables with higher variances could dominate the Euclidean distances used for creating clusters, I standardize each variable and replace them with _z_-scores.  Since the results are highly dependent upon the placement of the first clusters, I use 10 random initializations for each iteration of the algorithm.  The within-cluster sum of squares plot is shown below.     
+
+```{r, fig.align="center"}
+moc_std <- apply(moc, 2, scale, center = TRUE, scale = TRUE)
+
+set.seed(615)
+WSS = NULL
+for (K in 2:10) {
+  kms = kmeans(moc_std, centers = K, nstart = 10)
+  wssk = sum(kms$withinss)
+  WSS = c(WSS, wssk)
+}
+
+plot(c(2:10), WSS, xlab = "K", ylab = "WSS(K)")
+```
+
+The optimal number of clusters minimizes the WSS while also keeping the number of clusters small.  This can be done informally by identifying the "elbow" of the plot, or where the line connecting the points becomes somewhat flat.  From the figure above, there is no obvious "kink" in the line, though 6 might be a reasonable choice.   
+
+I reestimate the k-means clustering algorithm using _k_ = 6.  The output below shows the mean of each of the six clusters (rows) for each feature (columns).  As the variables were rescaled and standardized, this table can be used to easily compare the makeup of each cluster.  
+
+```{r}
+# fviz_nbclust(moc, kmeans, method='silhouette')
+
+mig_clust <- kmeans(moc_std, centers = 6, nstart = 10)
+# mig_clust$size
+round(mig_clust$centers, 2)
+
+
+#cluster 1: mostly men, younger, single,  
+# 2: like cluster 1 but more women
+# 3: older, rural adults, less educated
+# 4: married people
+# 5: Unemployed
+# 6: rural
+
+```
+
+The six groups of migrants found using this particular algorithm each have distinct characteristics.    Clusters 1 & 2 consist of single, younger, employed adults from urban areas with better than average education and income. The main difference between them is that Cluster 1 is mostly men and Cluster 2 is mostly women.  Cluster 3 is made up of older people from rural areas with families and lower socioeconomic status. Cluster 4 is more likely to be married, from an urban area, employed, and have slightly higher than average SES.  Cluster 5 is most distinct in that they are more likely to be unemployed and have low income.  Cluster 6 is highly rural with more or less average age, SES, and marital status.
+
+At the risk of oversimplification, we can assign the following labels to each cluster of migrant:
+
+- Cluster 1: Young professional men
+- Cluster 2: Young professional women
+- Cluster 3: Struggling older adults
+- Cluster 4: Middle class families
+- Cluster 5: The unemployed 
+- Cluster 6: Rural workers
+
+These descriptions can help us tell stories about the different reasons that people may migrate to a new country.  The young professionals may emigrate to seek education or white-collar jobs.  The struggling older adults and the middle class families may be facing pressure to provide for their dependents or may be desiring a new start for their families.  The unemployed and the rural workers are probably facing limited opportunities and searching for work in a new country.  
+
+# Part II: Regression Analyses
+
+What factors predict whether people migrate?  The reasons may differ for each of the groups identified above.  In this section, I use AmericasBarometer data to investigate which behaviors, attitudes, experiences, and opinions influence intention to migrate.  I use regression analyses among subgroups to compare which predictors are most strongly associated with intention to migrate between different types of migrants.  
+
+I return to the full data from the 2018/19 AmericasBarometer round (not just those intending to migrate). I use intention to migrate as the outcome variable.  One factor that could affect migration patterns is exposure to risk from natural disasters: someone who is at risk due to natural disasters may seek to emigrate in order to escape danger, seek a more secure means of livelihood, or move to a country with more social protections in case of sudden loss of income.  The 2018/19 AmericasBarometer asks the following question about disaster risk:
+
+- **DRK1.** How likely do you think it is that you or someone in your immediate family here in [country] could be killed or seriously injured in a natural disaster, such as floods, earthquakes, or hurricanes/landslides/tornados/storms, in the next 25 years? Do you think it is… (1) Not likely (2) A little likely (3) Somewhat likely (4) Very likely.
+
+```{r}
+library("survey")
+ab18s <- svydesign(id=~idnum, weights=~weight1500, strata=~estratopri, nest = TRUE, data = ab18)
+```
+
+
+However, the relationship between disasters and migration may not be constant across demographic groups.  The clusters are instructive here.  For example, let us compare cluster 1 and cluster 4.  Young professional men may not worry about the impact of disasters on their livelihood, since they are likely to work in white collar jobs and are mobile (as a result of not supporting a family).  Further, if migrants in this group are doing so in order to seek education or advance their careers, as I supposed in the previous section, risk of natural disasters should not relate to their decision to emigrate.  In contrast, middle class families may be more sensitive to the risk of natural disasters.  I hypothesized that migrants in this demographic group might be doing so to provide for their dependents or seek a new start for their family.  Exposure to natural disaster might be one reason for doing so; they may worry about how disasters would impact their children, parents, or other dependents as well as their property.  
+
+To assess whether migration affects intention to migrate among these two clusters, I estimate regressions on separate subpopulations based on observable demographic characterstics gathered from the clusters.  For cluster 1, I limit the analysis to men from urban areas who are single and under 40 years of age.  Cluster 4 consists of people from urban areas who are not single (married, living together, or in civil union), and have average income (between 25th and 75th percentile).  Because the outcome variable is binary, I estimate logistic regressions.  In addition to the four-point disaster risk measure, I include country fixed effects in each analysis.  
+
+<center> 
+
+```{r, results='asis', fig.align='center'}
+library(kableExtra)
+# library(tidyr)
+# library(dplyr)
+library(broom)
+
+c1 <- subset(ab18s, q1 == 1 & ur == 1 & q2 < 40 & single == 1)
+c3 <- subset(ab18s, ur == 2 & single == 0 & ed < 11 & q10new < 7)
+c4 <- subset(ab18s, ur == 1 & single == 0 & q10new >= 3 & q10new <= 12)
+c5 <- subset(ab18s, unemp == 1)
+c6 <- subset(ab18s, ur == 2)
+
+
+# ra <- svyglm(formula = migrate ~ drk1 + as.character(pais), design = ab18s)
+ra1 <- svyglm(formula = migrate ~ drk1 + pais_c, design = c1)
+# ra3 <- svyglm(formula = migrate ~ drk1 + pais_c, design = c3)
+ra4 <- svyglm(formula = migrate ~ drk1 + pais_c, design = c4)
+# ra5 <- svyglm(formula = migrate ~ drk1 + as.character(pais), design = c5)
+# ra6 <- svyglm(formula = migrate ~ drk1 + as.character(pais), design = c6)
+# 
+# 
+# rb1 <- svyglm(formula = migrate ~ env2b + as.character(pais), design = c1)
+# rb3 <- svyglm(formula = migrate ~ env2b + as.character(pais), design = c3)
+# rb4 <- svyglm(formula = migrate ~ env2b + as.character(pais), design = c4)
+# rb5 <- svyglm(formula = migrate ~ env2b + as.character(pais), design = c5)
+# rb6 <- svyglm(formula = migrate ~ env2b + as.character(pais), design = c6)
+
+# summary(ra4)
+
+
+library(stargazer)
+
+stargazer(ra1, ra4, 
+          type = "html",
+          title = "Logistic Regression Predicting Intention to Migrate",
+          column.labels = c("Cluster 1", "Cluster 4"),
+          dep.var.labels = "Intent to Migrate (1 = yes)",
+          colnames = FALSE,
+          model.numbers = FALSE, 
+          covariate.labels = c("Disaster Risk (1-4)"),
+          omit = c("pais_c", "pais_c"))
+       
+
+
+   # omit = c("as.character(pais)10", 'as.character(pais)10', 'as.character(pais)11', "as.character(pais)12", "as.character(pais)13","as.character(pais)14", "as.character(pais)15", "as.character(pais)17", "as.character(pais)2", "as.character(pais)21", "as.character(pais)23", "as.character(pais)3", "as.character(pais)4", "as.character(pais)6", "as.character(pais)7", "as.character(pais)9"),
+          # omit.labels = c("as.character(pais)10", 'as.character(pais)10', 'as.character(pais)11', "as.character(pais)12", "as.character(pais)13","as.character(pais)14", "as.character(pais)15", "as.character(pais)17", "as.character(pais)2", "as.character(pais)21", "as.character(pais)23", "as.character(pais)3", "as.character(pais)4", "as.character(pais)6", "as.character(pais)7", "as.character(pais)9")
+
+
+
+
+# ra1 %>%
+#   tidy() %>%
+#   kable(col.names = c("Predictor", "Estimate", "SE", "t-stat", "p-value"),
+#         digits = c(2, 2, 2, 2))
+
+# 
+# summary(rb5)
+
+```
+
+</center>
+
+The results of the two regressions are shown above.  As expected, disaster risk perception predicts intention to migrate among the "middle class family" group (cluster 4, column 2).  Conversely, there is no significant relationship between disaster risk and intention to migrate among the young male professionals (cluster 1, column 1).  
+
+The results demonstrate that factors which predict migration may vary based on an individual's demographic identity or social location.  This phenomenon could certainly exist for other types of behaviors and attitudes as well.  For example, community involvement could negatively predict intention to migrate for for single people and the unemployed but not for others who have strong ties to their current place of residence because of family or their work.  Also, concern about crime and gender-based violence may led to emigration for young female professionals but not their male counterparts.  
+
+This exercise shows the utility of cluster analysis in helping discover patterns of migration.  Exploring the clusters can help generate hypotheses about the factors which predict migration and can shed light on cross-demographic patterns in migration that cannot be captured by simply adding demographic variables as controls or interactions in regression models.  
