@@ -66,6 +66,7 @@ library(readstata13)
 library(mice)
 library(kableExtra)
 library(glmnet)
+library(stargazer)
 
 gtm18 <- read.dta13("C:/Users/plutowl/Desktop/data/gtm_2019_cy_spa-eng_p_v1-0.dta", convert.factors = FALSE)
 
@@ -207,6 +208,7 @@ kbl(resultsdf,
                   full_width = FALSE)
 
 ```
+
 </center>
 
 The table above shows the results of the LASSO regression analysis.  Empty cells indicate that the coefficient was reduced to zero.  As can be observed from the table, there is a high degree of variability in which variables were dropped across the groups. 
@@ -216,5 +218,42 @@ In groups 1 & 2, all coefficients were shrunk to zero. For this particular subse
 In all groups besides 1 and 2, vic45n (has R changed place of work or study) is positively related to intention to migrate.  Corruption victimization by police (exc2) is predicts intention to migrate among groups 3-6, but corruption by other public officials does not.  Disaster risk (drk1) is dropped from all models, as are cp6 (religious meeting attendance), np1 (attendance at municipal sessions), sd2new2 and sd6new (satisfaction with roads and public health), vic41 (avoided recreations due to fear of crime), aoj11 (security of neighborhood), pese1 (security of neighborhood compared to others), corinv (whether corrupt officials are brought to justice).  These factors could be important on their own but are perhaps subsumed by other similar-looking variables.  
 
 Group 4 (middle class families) seem to be driven to migrate mostly by political variables.  Interestingly, satisfaction with municipal government services is negatively related to intention to migrate among that group, but positively related for group 5.  Groups 3 (low SES, older) and 5 (unemployed) are affected by a whole host of factors; perhaps these groups are too broad or diverse to have a common set of behavioral or attitudinal drivers.  Group 6 (rural, employed) appear to be influenced by push factors including crime and corruption, but are also constrained by pull factors including attendance at community meetings.  
+
+We can compare these results to those obtained by regular logistic regression.  The table below shows the results of "kitchen sink" models for each group.  Note that the observations in each group are quite low compared to the number of predictors, which generally leads to poor model performance.  
+
+<center>
+
+```{r, results='hide'}
+c1reg <- glm(gtm18.migrate ~ . - q1 - q2 - ur - single - ed - q10new -unemp, data = c1, family = "binomial")
+c2reg <- glm(gtm18.migrate ~ . - q1 - q2 - ur - single - ed - q10new -unemp, data = c2, family = "binomial")
+c3reg <- glm(gtm18.migrate ~ . - q1 - q2 - ur - single - ed - q10new -unemp, data = c3, family = "binomial")
+c4reg <- glm(gtm18.migrate ~ . - q1 - q2 - ur - single - ed - q10new -unemp, data = c4, family = "binomial")
+c5reg <- glm(gtm18.migrate ~ . - q1 - q2 - ur - single - ed - q10new -unemp, data = c5, family = "binomial")
+c6reg <- glm(gtm18.migrate ~ . - q1 - q2 - ur - single - ed - q10new -unemp, data = c6, family = "binomial")
+
+stargazer(c1reg, c2reg, c3reg, c4reg, c5reg, c6reg, 
+          type = "html",
+          title = "Logistic Regression Predicting Intention to Migrate",
+          dep.var.labels = "Intent to Migrate (1 = yes)",
+          colnames = FALSE,
+          model.numbers = FALSE,
+          column.labels = c("Group 1", "Group 2", "Group 3", "Group 4", "Group 5", "Group 6"),
+          se = NULL,
+          digits = 2, 
+          report = "vc*", 
+          out = "table2.html")
+```
+
+```{r, echo=FALSE}
+htmltools::includeHTML("table2.html")
+```
+
+</center>
+
+Comparing results from the two tables, we see generally overlapping patterns between the LASSO and logistic models.  Coefficients which are zeroed-out by the LASSO are not significant predictors in the regular logistic models, and the significant predictors in the logistic models are not zero in the LASSOs.  However, the logistic regressions are more strict, in the sense that they have fewer significant coefficients that LASSO has non-zero coefficients.  However, 
+
+As in the LASSO, intention to migrate among group 1 is difficult to predict, having no significant coefficients at the $p < 0.05$ level.  For group 2, eff1 and pese2 emerge as significant predictors.  For group 3, it1, cp8, sgl1, eff1, and fear11 are associated with intention to migrate.  Only prot3, vic45n, and exc2 are significantly related to migration intention in group 4.  Cp8, sgl1, and vic45n are significant for group 5.  Finally, in group 6, sd3new, eff1, and vic1ext are significant. 
+
+Compared to table 1, table 2 tells a stronger story about eff1, external political efficacy.  This is a significant covariate at $p < 0.1$ in groups 2, 3, 5, and 6.  Both approaches show that vic45n, whether someone has changed jobs for fear of crime, is quite important for predicting migration among groups 4 and 5. Cp8, attendance at meetings for community improvement, is negatively associated with intention to migrate for groups 3 and 5 in both models.  The LASSO model appears to show that group 4 is mostly influenced by political variables, but the logistic regression indicates that they are highly affected by crime and corruption as well.  In both approaches, group 1 is difficult to predict, but the logistic model for group 2 indicates significant predictors of migration.    
 
 This exercise shows one approach to analyzing the factors that cause or prevent migration, and how those factors vary by subgroup.  The use of the LASSO as a variable selection method allows us to sort through the multitude of available data to pinpoint the most important variables when it comes to assessing migration risk.  

@@ -1339,6 +1339,88 @@ behavioral or attitudinal drivers. Group 6 (rural, employed) appear to
 be influenced by push factors including crime and corruption, but are
 also constrained by pull factors including attendance at community
 meetings.</p>
+<p>We can compare these results to those obtained by regular logistic
+regression. The table below shows the results of “kitchen sink” models
+for each group. Note that the observations in each group are quite low
+compared to the number of predictors, which generally leads to poor
+model performance.</p>
+<center>
+
+<table style="text-align:center"><caption><strong>Logistic Regression Predicting Intention to Migrate</strong></caption>
+<tr><td colspan="7" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="6"><em>Dependent variable:</em></td></tr>
+<tr><td></td><td colspan="6" style="border-bottom: 1px solid black"></td></tr>
+<tr><td style="text-align:left"></td><td colspan="6">Intent to Migrate (1 = yes)</td></tr>
+<tr><td style="text-align:left"></td><td>Group 1</td><td>Group 2</td><td>Group 3</td><td>Group 4</td><td>Group 5</td><td>Group 6</td></tr>
+<tr><td colspan="7" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">soct2</td><td>0.20</td><td>-0.40</td><td>0.40</td><td>-0.55</td><td>0.15</td><td>-0.03</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">np1</td><td>0.48</td><td>1.34</td><td>0.63</td><td>0.74</td><td>0.06</td><td>-0.13</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">muni5</td><td>0.31</td><td>0.63</td><td>0.99<sup>*</sup></td><td>-0.51</td><td>0.16</td><td>0.19</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">it1</td><td>0.49<sup>*</sup></td><td>0.32</td><td>-0.42<sup>**</sup></td><td>-0.03</td><td>0.15</td><td>-0.04</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">cp6</td><td>0.13</td><td>0.06</td><td>0.02</td><td>-0.10</td><td>0.07</td><td>0.12</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">cp7</td><td>-0.21</td><td>0.20</td><td>0.02</td><td>-0.18</td><td>-0.23</td><td>-0.12</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">cp8</td><td>0.19</td><td>0.15</td><td>-0.54<sup>***</sup></td><td>-0.12</td><td>-0.36<sup>**</sup></td><td>-0.13</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">cp13</td><td>-0.19</td><td>-1.32<sup>*</sup></td><td>0.24</td><td>-0.60<sup>*</sup></td><td>0.37</td><td>-0.04</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">sgl1</td><td>-0.22</td><td>0.15</td><td>0.36<sup>**</sup></td><td>0.45</td><td>-0.38<sup>**</sup></td><td>0.09</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">prot3</td><td>-0.47</td><td>0.41</td><td>0.43</td><td>-1.42<sup>**</sup></td><td>-0.93<sup>*</sup></td><td>-0.07</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">sd2new2</td><td>0.41</td><td>0.57</td><td>-0.08</td><td>-0.63<sup>*</sup></td><td>0.19</td><td>-0.001</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">sd3new2</td><td>-0.44</td><td>0.35</td><td>0.005</td><td>0.32</td><td>-0.07</td><td>0.31<sup>**</sup></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">sd6new2</td><td>-0.14</td><td>-0.28</td><td>-0.01</td><td>0.20</td><td>-0.05</td><td>0.06</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">eff1</td><td>0.02</td><td>0.28<sup>**</sup></td><td>0.27<sup>***</sup></td><td>0.01</td><td>0.12<sup>*</sup></td><td>0.13<sup>**</sup></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">eff2</td><td>0.06</td><td>0.15</td><td>0.18<sup>*</sup></td><td>-0.12</td><td>0.07</td><td>0.001</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">vic1ext</td><td>0.42</td><td>-0.71</td><td>-0.23</td><td>-0.73</td><td>-0.25</td><td>-0.70<sup>**</sup></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">vicbar7</td><td>-0.39</td><td>-0.92<sup>*</sup></td><td>0.33</td><td>-0.36</td><td>-0.36</td><td>-0.13</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">vic41</td><td>-0.21</td><td>-0.14</td><td>-0.40</td><td>-0.43</td><td>-0.17</td><td>-0.11</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">fear11</td><td>-0.20</td><td>-0.42<sup>*</sup></td><td>-0.42<sup>**</sup></td><td>0.12</td><td>0.01</td><td>-0.15</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">vic45n</td><td>0.89</td><td>0.64</td><td>0.66</td><td>1.37<sup>**</sup></td><td>1.07<sup>**</sup></td><td>0.24</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">vicbar4a</td><td>0.76</td><td>-1.99<sup>*</sup></td><td>1.27</td><td>-0.47</td><td>-0.05</td><td>0.43</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">aoj11</td><td>0.10</td><td>-0.16</td><td>-0.05</td><td>-0.21</td><td>-0.05</td><td>-0.03</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">pese1</td><td>0.16</td><td>-0.18</td><td>-0.09</td><td>0.31</td><td>0.27</td><td>0.24</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">pese2</td><td>-0.14</td><td>0.83<sup>**</sup></td><td>-0.24</td><td>-0.25</td><td>-0.33</td><td>-0.09</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">exc2</td><td>0.01</td><td>0.48</td><td>0.26</td><td>1.54<sup>***</sup></td><td>0.61</td><td>0.38</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">exc6</td><td>0.45</td><td>-3.41<sup>*</sup></td><td>0.08</td><td>-1.03</td><td>0.01</td><td>0.21</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">exc7b</td><td>0.11</td><td>0.29</td><td>0.02</td><td>-0.20</td><td>0.14</td><td>0.11</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">corinv</td><td>0.37<sup>*</sup></td><td>-0.01</td><td>0.03</td><td>0.15</td><td>0.05</td><td>0.01</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">drk1</td><td>0.24</td><td>0.33</td><td>-0.04</td><td>-0.01</td><td>0.01</td><td>-0.07</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">Constant</td><td>-4.35</td><td>-2.82</td><td>-4.23</td><td>5.13</td><td>1.11</td><td>-0.35</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td colspan="7" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Observations</td><td>127</td><td>132</td><td>298</td><td>213</td><td>305</td><td>613</td></tr>
+<tr><td style="text-align:left">Log Likelihood</td><td>-70.99</td><td>-65.06</td><td>-113.12</td><td>-78.00</td><td>-170.98</td><td>-324.02</td></tr>
+<tr><td style="text-align:left">Akaike Inf. Crit.</td><td>201.98</td><td>190.12</td><td>286.24</td><td>215.99</td><td>401.96</td><td>708.03</td></tr>
+<tr><td colspan="7" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"><em>Note:</em></td><td colspan="6" style="text-align:right"><sup>*</sup>p&lt;0.1; <sup>**</sup>p&lt;0.05; <sup>***</sup>p&lt;0.01</td></tr>
+</table>
+</center>
+<p>Comparing results from the two tables, we see generally overlapping
+patterns between the LASSO and logistic models. The coefficients which
+are significant in the logistic models are found to have non-zero
+coefficients in the LASSOs.</p>
 <p>This exercise shows one approach to analyzing the factors that cause
 or prevent migration, and how those factors vary by subgroup. The use of
 the LASSO as a variable selection method allows us to sort through the
