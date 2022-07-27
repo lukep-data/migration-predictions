@@ -1418,9 +1418,30 @@ model performance.</p>
 </table>
 </center>
 <p>Comparing results from the two tables, we see generally overlapping
-patterns between the LASSO and logistic models. The coefficients which
-are significant in the logistic models are found to have non-zero
-coefficients in the LASSOs.</p>
+patterns between the LASSO and logistic models. Coefficients which are
+zeroed-out by the LASSO are not significant predictors in the regular
+logistic models, and the significant predictors in the logistic models
+are not zero in the LASSOs. However, the logistic regressions are more
+strict, in the sense that they have fewer significant coefficients that
+LASSO has non-zero coefficients. However,</p>
+<p>As in the LASSO, intention to migrate among group 1 is difficult to
+predict, having no significant coefficients at the <span class="math inline">\(p &lt; 0.05\)</span> level. For group 2, eff1 and
+pese2 emerge as significant predictors. For group 3, it1, cp8, sgl1,
+eff1, and fear11 are associated with intention to migrate. Only prot3,
+vic45n, and exc2 are significantly related to migration intention in
+group 4. Cp8, sgl1, and vic45n are significant for group 5. Finally, in
+group 6, sd3new, eff1, and vic1ext are significant.</p>
+<p>Compared to table 1, table 2 tells a stronger story about eff1,
+external political efficacy. This is a significant covariate at <span class="math inline">\(p &lt; 0.1\)</span> in groups 2, 3, 5, and 6. Both
+approaches show that vic45n, whether someone has changed jobs for fear
+of crime, is quite important for predicting migration among groups 4 and
+5. Cp8, attendance at meetings for community improvement, is negatively
+associated with intention to migrate for groups 3 and 5 in both models.
+The LASSO model appears to show that group 4 is mostly influenced by
+political variables, but the logistic regression indicates that they are
+highly affected by crime and corruption as well. In both approaches,
+group 1 is difficult to predict, but the logistic model for group 2
+indicates significant predictors of migration.</p>
 <p>This exercise shows one approach to analyzing the factors that cause
 or prevent migration, and how those factors vary by subgroup. The use of
 the LASSO as a variable selection method allows us to sort through the
